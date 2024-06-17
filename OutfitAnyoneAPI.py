@@ -15,12 +15,12 @@ def createId():
 
 
 def uploadImage(image_data, image_id):
-    uploadUrl = "https://humanaigc-outfitanyone.hf.space/--replicas/ppht9/upload?upload_id="
+    uploadUrl = "https://humanaigc-outfitanyone.hf.space/upload?upload_id="
 
     # 构建请求body
-    boundary = '----WebKitFormBoundarykZ1XPpBb18ioV3Nt'
+    boundary = '----WebKitFormBoundaryGYIaXS3xDCtcKfzH'
     fields = [
-        ('files', ('sample.jpg', image_data, 'application/octet-stream'))
+        ('files', ('sample.jpg', image_data, 'image/png'))
     ]
 
     # 编码multipart/form-data格式的数据
@@ -45,8 +45,8 @@ def uploadImage(image_data, image_id):
     return response.data.decode('utf-8')[2:-2]
 
 
-def WaitEvent(session_hash, image1_srv, image2_srv, image1_size, image2_size):
-    queueUrl = "https://humanaigc-outfitanyone.hf.space/queue/join?fn_index=3&session_hash="
+def WaitEvent(session_hash):
+    queueUrl = "https://humanaigc-outfitanyone.hf.space/queue/data?session_hash="
     response = http.request(
         'GET', queueUrl + session_hash, preload_content=False)
 
@@ -57,45 +57,50 @@ def WaitEvent(session_hash, image1_srv, image2_srv, image1_size, image2_size):
         if json_data['msg'] == 'estimation':
             print("wait rank: "+str(json_data['rank']
                                     ) + "/"+str(json_data['queue_size']))
-        elif json_data['msg'] == 'send_data':
-            run(session_hash, json_data['event_id'],
-                image1_srv, image2_srv, image1_size, image2_size)
         elif json_data['msg'] == 'process_completed':
             if json_data['success'] == False:
                 print("failed")
                 return json_data['output']['error']
             else:
-                return "https://humanaigc-outfitanyone.hf.space/--replicas/ppht9/file="+json_data['output']['data'][0]['path']
+                return "https://humanaigc-outfitanyone.hf.space/file="+json_data['output']['data'][0]['path']
 
 
-def run(session_hash, event_id, image1_srv, image2_srv, image1_size, image2_size):
-    runUrl = "https://humanaigc-outfitanyone.hf.space/queue/data"
+def run(session_hash, image1_srv, image2_srv, image1_size, image2_size):
+    runUrl = "https://humanaigc-outfitanyone.hf.space/queue/join?"
     body = {
         "data": [
             {
                 "path": "/tmp/gradio/28dbd2deba1e160bfadffbc3675ba4dcac20ca58/Eva_0.png",
-                "url": "https://humanaigc-outfitanyone.hf.space/--replicas/ppht9/file=/tmp/gradio/28dbd2deba1e160bfadffbc3675ba4dcac20ca58/Eva_0.png",
+                "url": "ttps://humanaigc-outfitanyone.hf.space/file=/tmp/gradio/28dbd2deba1e160bfadffbc3675ba4dcac20ca58/Eva_0.png",
+                "meta": {
+                    "_type": "gradio.FileData",
+                },
                 "size": None,
                 "mime_type": None,
                 "orig_name": "Eva_0.png",
             },
             {
                 "path": image1_srv,
-                "url": "https://humanaigc-outfitanyone.hf.space/--replicas/ppht9/file=" + image1_srv,
+                "url": "https://humanaigc-outfitanyone.hf.space/file=" + image1_srv,
+                "meta": {
+                    "_type": "gradio.FileData",
+                },
                 "size": image1_size,
                 "mime_type": "",
                 "orig_name": "sample.jpg",
             },
             {
                 "path": image2_srv,
-                "url": "https://humanaigc-outfitanyone.hf.space/--replicas/ppht9/file=" + image2_srv,
+                "url": "https://humanaigc-outfitanyone.hf.space/file=" + image2_srv,
+                "meta": {
+                    "_type": "gradio.FileData",
+                },
                 "size": image2_size,
                 "mime_type": "",
                 "orig_name": "sample.jpg",
             }
         ],
         "event_data": None,
-        "event_id": event_id,
         "fn_index": 3,
         "session_hash": session_hash,
         "trigger_id": 13
@@ -112,6 +117,7 @@ def run(session_hash, event_id, image1_srv, image2_srv, image1_size, image2_size
     response = http.request('POST', runUrl, headers=headers,
                             body=str(body).replace('None', 'null').replace("'", '"'))
     return response.data.decode('utf-8')
+
 
 def getResult(url):
     response = http.request('GET', url, preload_content=False)
@@ -146,11 +152,13 @@ def main():
     image2_srv = uploadImage(image2_data, image2_id)
 
     session_hash = createId()
-    result_url = WaitEvent(session_hash, image1_srv,
-                         image2_srv, image1_size, image2_size)
-    
-    getResult(result_url)
 
+    run(session_hash,
+        image1_srv, image2_srv, image1_size, image2_size)
+
+    result_url = WaitEvent(session_hash)
+
+    getResult(result_url)
 
 
 if __name__ == "__main__":
